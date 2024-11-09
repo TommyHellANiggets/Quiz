@@ -1,6 +1,7 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, get_user_model
 from django.contrib import messages
+from django.urls import reverse
 
 User = get_user_model()
 
@@ -46,9 +47,11 @@ def auth_view(request):
     return render(request, 'auth.html')
 
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.decorators import login_required
 from .models import Quiz
 
+@login_required  # Используем декоратор, чтобы гарантировать, что пользователь авторизован
 def quiz_detail(request, slug):
     quiz = get_object_or_404(Quiz, slug=slug)
     questions_with_choices = []
@@ -71,14 +74,6 @@ def quiz_detail(request, slug):
         'quiz_id': quiz.id  # Передаем quiz.id
     }
     return render(request, 'index.html', context)
-
-
-from django.shortcuts import get_object_or_404
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
-import json
-
-from .models import Quiz, UserAnswer, Question
 
 
 import json
@@ -105,13 +100,27 @@ def save_quiz_answers(request, slug):
         for question_index, answer_value in answers.items():
             try:
                 question = quiz.questions.get(id=int(question_index))
+
+                # Получение баллов для выбранного ответа
+                score = 0
+                if answer_value == 'a':
+                    score = question.score_a
+                elif answer_value == 'b':
+                    score = question.score_b
+                elif answer_value == 'c':
+                    score = question.score_c
+                elif answer_value == 'd':
+                    score = question.score_d
+
+                # Сохранение ответа и баллов
                 UserAnswer.objects.update_or_create(
                     user=request.user if request.user.is_authenticated else None,
                     quiz=quiz,
                     question=question,
-                    defaults={'selected_answer': answer_value}
+                    defaults={'selected_answer': answer_value, 'score': score}
                 )
-                print(f"Saved answer for question ID {question_index}: {answer_value}")
+                print(f"Saved answer for question ID {question_index}: {answer_value} with score {score}")
+
             except Question.DoesNotExist:
                 print(f"Question with ID {question_index} not found.")
                 return JsonResponse({'error': f'Question with ID {question_index} not found.'}, status=404)
@@ -132,10 +141,7 @@ def quiz_result(request, slug):
     if not user_answers:
         return render(request, 'result.html', {'error': 'No answers found for this quiz.'})
 
-    # Get the first score (or default to 0 if no score is found)
-    total_score = user_answers.values_list('score', flat=True).first() or 0  # Correct field name 'score'
-
-    # Optionally, sum the scores for all answers if you need the total score
+    # Суммируем баллы за все вопросы
     total_score = sum(user_answers.values_list('score', flat=True))
 
     return render(request, 'result.html', {'total_score': total_score, 'quiz': quiz})

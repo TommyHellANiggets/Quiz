@@ -47,12 +47,17 @@ class Question(models.Model):
         return f"{self.quiz.title} - {self.title}"
 
 
+from django.db import models
+from django.contrib.auth.models import User
+from django.utils import timezone
+
 class UserAnswer(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     quiz = models.ForeignKey(Quiz, on_delete=models.CASCADE)
     question = models.ForeignKey(Question, on_delete=models.CASCADE)
     selected_answer = models.CharField(max_length=1, choices=[('a', 'A'), ('b', 'B'), ('c', 'C'), ('d', 'D')], verbose_name="Выбранный ответ")
     score = models.IntegerField(default=0)
+    answered_at = models.DateTimeField(default=timezone.now, verbose_name="Время ответа")
 
     class Meta:
         unique_together = ('user', 'quiz', 'question')
