@@ -1,0 +1,143 @@
+{% load static %}
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz</title>
+    <link rel="stylesheet" href="{% static 'quiz.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+</head>
+<body>
+    <header class="survey__header">
+        <a href="#" class="survey-logo">
+            <img src="{% static 'logo.png' %}" alt="Логотип" class="survey-logo__link">
+        </a>
+        <button class="survey__profile-button">Профиль</button>
+    </header>
+ {% csrf_token %}
+    <section class="survey__content">
+
+    {% for question_data in questions_with_choices %}
+<div class="survey__question" data-id="{{ question_data.question.id }}" {% if not forloop.first %}style="display: none;"{% endif %}>
+    {% if question_data.question.image %}
+    <div class="survey__image-placeholder">
+        <img src="{{ question_data.question.image.url }}" alt="Изображение вопроса" class="survey__image-placeholder__img">
+    </div>
+    {% endif %}
+    <div class="survey__text">
+        <h2 class="survey__title">{{ question_data.question.title }}</h2>
+        <p class="survey__description">{{ question_data.question.description }}</p>
+    </div>
+    <div class="survey__options">
+        {% for choice, label in question_data.choices %}
+        <div class="survey__option">
+            <label class="survey__option-label">
+                <input class="survey__option-input" type="radio" name="answer_{{ question_data.question.id }}" value="{{ choice }}" />
+                <span class="survey__option-text">{{ choice }}) {{ label }}</span>
+            </label>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endfor %}
+
+</section>
+
+    <footer class="survey__footer">
+        <div class="survey__pagination">
+            <button class="survey__button survey__button--back">Назад</button>
+            <button class="survey__button survey__button--next">Следующий</button>
+        </div>
+    </footer>
+
+    <script>
+document.addEventListener('DOMContentLoaded', function () {
+    const quiz_slug = "{{ quiz.slug }}";
+    let currentQuestionIndex = 0;
+    const questions = document.querySelectorAll('.survey__question');
+    const nextButton = document.querySelector('.survey__button--next');
+    const backButton = document.querySelector('.survey__button--back');
+    const answers = {};
+
+    // Отображение текущего вопроса и скрытие остальных
+    function updateQuestionDisplay() {
+        questions.forEach((question, index) => {
+            question.style.display = index === currentQuestionIndex ? 'block' : 'none';
+        });
+        nextButton.textContent = currentQuestionIndex === questions.length - 1 ? 'Закончить' : 'Следующий';
+    }
+
+    // Сохранение ответа для текущего вопроса
+    questions.forEach((question) => {
+        const questionId = question.getAttribute('data-id');  // Используем правильный ID вопроса
+        if (!questionId) {
+            console.error('Question ID is missing');
+            return;
+        }
+
+        question.querySelectorAll('input[type="radio"]').forEach(input => {
+            input.addEventListener('change', () => {
+                answers[questionId] = input.value;
+                console.log(`Auto-saved: Question ID ${questionId}, Answer: ${input.value}`);
+            });
+        });
+    });
+
+    // Переход к следующему вопросу или сохранение всех ответов
+    nextButton.addEventListener('click', () => {
+        if (currentQuestionIndex < questions.length - 1) {
+            currentQuestionIndex++;
+            updateQuestionDisplay();
+        } else {
+            saveAllAnswers();
+        }
+    });
+
+    // Переход к предыдущему вопросу
+    backButton.addEventListener('click', () => {
+        if (currentQuestionIndex > 0) {
+            currentQuestionIndex--;
+            updateQuestionDisplay();
+        }
+    });
+
+    // Сохранение всех ответов через fetch
+    function saveAllAnswers() {
+        const csrfToken = document.querySelector('[name="csrfmiddlewaretoken"]');
+        if (!csrfToken) {
+            console.error("CSRF token not found");
+            return;
+        }
+
+        fetch(`/quiz/${quiz_slug}/save_answer/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken.value,  // Теперь это работает, если CSRF-токен есть
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ answers })
+        })
+        .then(response => {
+            if (response.ok) {
+                window.location.href = "{% url 'quiz_result' slug=quiz.slug %}";
+            } else {
+                return response.json().then(data => {
+                    throw new Error(data.error || 'Ошибка при сохранении ответов');
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error saving answers:', error);
+            alert('Ошибка при сохранении ответов. Попробуйте снова.');
+        });
+    }
+
+    // Инициализация показа первого вопроса
+    updateQuestionDisplay();
+});
+
+    </script>
+</body>
+</html>

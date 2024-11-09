@@ -1,0 +1,71 @@
+{% load static %}
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Авторизация и Регистрация</title>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'auth.css' %}">
+    <script defer src="auth.js"></script>
+</head>
+<body>
+    <div class="auth-page">
+        <header class="auth-header">
+            <div class="auth-switch">
+                <button class="switch-button" id="login-btn">Авторизация</button>
+                <span>|</span>
+                <button class="switch-button" id="register-btn">Регистрация</button>
+            </div>
+        </header>
+
+        <div class="auth-content">
+            <div class="auth-forms">
+                <form method="POST" class="auth-form" id="login-form">
+                    {% csrf_token %}
+                    <label for="email-login" class="auth-label">Электронная почта</label>
+                    <input type="email" id="email-login" name="email-login" class="auth-input" placeholder="Введите вашу почту" required>
+
+                    <label for="password-login" class="auth-label">Пароль</label>
+                    <div class="password-container">
+                        <input type="password" id="password-login" name="password-login" class="password-toggle auth-input" placeholder="Введите ваш пароль" required>
+                        <button type="button" class="toggle-password-btn">👁️</button>
+                    </div>
+
+                    <button type="submit" name="login-btn" class="auth-button">Войти</button>
+                </form>
+
+                <form method="POST" class="auth-form" id="register-form" style="display: none;">
+                    {% csrf_token %}
+                    <label for="name-register" class="auth-label">Имя</label>
+                    <input type="text" id="name-register" name="name-register" class="auth-input" placeholder="Введите ваше имя" required>
+
+<!--                    <label for="phone-register" class="auth-label">Номер телефона</label>-->
+<!--                    <input type="tel" id="phone-register" name="phone-register" class="auth-input" placeholder="Введите ваш номер телефона" required>-->
+
+                    <label for="email-register" class="auth-label">Электронная почта</label>
+                    <input type="email" id="email-register" name="email-register" class="auth-input" placeholder="Введите вашу почту" required>
+
+                    <label for="password-register" class="auth-label">Пароль</label>
+                    <div class="password-container">
+                        <input type="password" id="password-register" name="password-register" class="password-toggle auth-input" placeholder="Придумайте пароль" required>
+                        <button type="button" class="toggle-password-btn">👁️</button>
+                    </div>
+
+                    <button type="submit" name="register-btn" class="auth-button">Зарегистрироваться</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Display messages if any -->
+    {% if messages %}
+        <div class="messages">
+            {% for message in messages %}
+                <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <script src="{% static 'script.js' %}"></script>
+</body>
+</html>
