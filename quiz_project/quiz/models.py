@@ -61,3 +61,13 @@ class UserAnswer(models.Model):
 
     class Meta:
         unique_together = ('user', 'quiz', 'question')
+
+
+from django.db import models
+
+class QuizResultAdmin(models.Model):
+    user_id = models.IntegerField()  # ID пользователя
+    username = models.CharField(max_length=100)  # Логин
+    score = models.IntegerField()  # Набранный балл
+    max_score = models.IntegerField()  # Максимальный балл
+    date = models.DateTimeField(auto_now_add=True)  # Дата

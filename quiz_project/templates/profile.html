@@ -1,0 +1,41 @@
+{% load static %}
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Профиль пользователя</title>
+    <link rel="stylesheet" href="{% static 'quiz.css' %}">
+</head>
+<body>
+    <div class="profile-content">
+        <div class="leftside">
+            <h2>Профиль</h2>
+            <p>ID: {{ user_id }}</p>
+            <p>Имя: {{ user_username }}</p>
+            <p>Email: {{ user_email }}</p>
+
+            <form method="POST" class="form-password">
+                {% csrf_token %}
+                <input type="password" name="old_password" placeholder="Старый пароль">
+                <input type="password" name="new_password" placeholder="Новый пароль">
+                <button type="submit" name="change_password">Сменить пароль</button>
+            </form>
+
+            <form method="POST">
+                {% csrf_token %}
+                <button type="submit" name="logout" class="log_out">Выйти</button>
+            </form>
+        </div>
+        <div class="rightside">
+            <h2>Результаты квизов</h2>
+            <div class="quiz-box">
+                {% for result in quiz_results %}
+                    <p class="li-element">Квиз: {{ result.quiz_title }}, Баллы: {{ result.user_score }} / {{ result.total_score }}</p>
+                {% empty %}
+                    <p class="li-element">Нет результатов для отображения.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

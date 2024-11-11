@@ -6,7 +6,8 @@ from django.urls import reverse
 User = get_user_model()
 
 def auth_view(request):
-    # Если запрос POST, то обрабатываем форму
+    next_url = request.GET.get('next', 'base')  # Получаем next из GET-параметра
+
     if request.method == 'POST':
         if 'login-btn' in request.POST:
             email = request.POST.get('email-login')
@@ -17,10 +18,7 @@ def auth_view(request):
 
             if user is not None:
                 login(request, user)
-
-                # Получаем параметр next, если он есть, иначе редиректим на 'base'
-                next_url = request.GET.get('next', 'base')
-                return redirect(next_url)
+                return redirect(next_url)  # Редирект на next после успешного входа
             else:
                 messages.error(request, 'Неверные данные для входа')
 
@@ -40,11 +38,15 @@ def auth_view(request):
                 )
                 user.save()
                 messages.success(request, 'Регистрация успешна! Пожалуйста, войдите.')
-                return redirect('auth')  # Редирект на страницу авторизации
+
+                # Редирект на страницу авторизации с сохраненным параметром next
+                return redirect(f"{reverse('auth')}?next={next_url}")
             else:
                 messages.error(request, 'Пользователь с таким email уже существует')
 
-    return render(request, 'auth.html')
+    # Передаем next в шаблон, чтобы сохранить его при регистрации
+    return render(request, 'auth.html', {'next': next_url})
+
 
 
 from django.shortcuts import render, get_object_or_404, redirect
@@ -134,14 +136,165 @@ def save_quiz_answers(request, slug):
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
+from django.shortcuts import render, get_object_or_404
+from .models import Quiz, Question, UserAnswer
+from django.contrib.auth.decorators import login_required
+
+from django.shortcuts import render, get_object_or_404
+from .models import Quiz, UserAnswer
+from django.contrib.auth.decorators import login_required
+
+
+@login_required
 def quiz_result(request, slug):
+    # Получаем квиз по slug
     quiz = get_object_or_404(Quiz, slug=slug)
+
+    # Получаем все вопросы квиза
+    questions = quiz.questions.all()
+
+    # Считаем максимальное количество баллов за квиз
+    total_score = sum(
+        question.score_a + question.score_b + question.score_c + question.score_d
+        for question in questions
+    )
+
+    # Получаем ответы пользователя на вопросы
     user_answers = UserAnswer.objects.filter(user=request.user, quiz=quiz)
 
-    if not user_answers:
-        return render(request, 'result.html', {'error': 'No answers found for this quiz.'})
+    # Считаем фактическое количество баллов, набранных пользователем
+    user_score = sum(user_answer.score for user_answer in user_answers)
 
-    # Суммируем баллы за все вопросы
-    total_score = sum(user_answers.values_list('score', flat=True))
+    # Список для хранения результатов по каждому вопросу
+    question_results = []
 
-    return render(request, 'result.html', {'total_score': total_score, 'quiz': quiz})
+    for idx, question in enumerate(questions, 1):  # Начнем нумерацию с 1
+        # Получаем ответ пользователя на текущий вопрос
+        user_answer = user_answers.filter(question=question).first()
+        # Если пользователь ответил, то берем его баллы, если нет, то 0
+        user_answer_score = user_answer.score if user_answer else 0
+        # Суммируем баллы за все варианты ответов на вопрос
+        total_question_score = question.score_a + question.score_b + question.score_c + question.score_d
+        # Добавляем в список результаты
+        question_results.append({
+            'question_number': idx,
+            'user_answer_score': user_answer_score,
+            'total_question_score': total_question_score,
+        })
+
+    # Отправляем данные в контекст для отображения на странице
+    context = {
+        'quiz': quiz,
+        'total_score': total_score,
+        'user_score': user_score,
+        'question_results': question_results,
+    }
+
+    return render(request, 'result.html', context)
+
+
+from django.db.models import Sum
+from django.shortcuts import render, redirect
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import update_session_auth_hash, logout
+from django.contrib import messages
+from .models import Quiz, UserAnswer
+
+
+@login_required
+def profile_view(request):
+    # Handle password change
+    if request.method == 'POST':
+        if 'change_password' in request.POST:
+            old_password = request.POST.get('old_password')
+            new_password = request.POST.get('new_password')
+
+            if request.user.check_password(old_password):
+                request.user.set_password(new_password)
+                request.user.save()
+                update_session_auth_hash(request, request.user)  # Keep user logged in after password change
+                messages.success(request, 'Password changed successfully.')
+            else:
+                messages.error(request, 'Old password is incorrect.')
+
+        elif 'logout' in request.POST:
+            logout(request)
+            return redirect('auth')  # Redirect to login page after logout
+
+    # Get quiz results for the user
+    user_quiz_results = []
+    quizzes_taken = UserAnswer.objects.filter(user=request.user).values('quiz').distinct()
+
+    for quiz_data in quizzes_taken:
+        quiz = Quiz.objects.get(id=quiz_data['quiz'])
+
+        # Calculate the total score for the quiz
+        total_score = sum(
+            question.score_a + question.score_b + question.score_c + question.score_d
+            for question in quiz.questions.all()
+        )
+
+        # Calculate the user's score for the quiz
+        user_score = UserAnswer.objects.filter(user=request.user, quiz=quiz).aggregate(user_score=Sum('score'))[
+            'user_score']
+
+        # Append quiz result to the list
+        user_quiz_results.append({
+            'quiz_title': quiz.title,
+            'user_score': user_score,
+            'total_score': total_score
+        })
+
+    context = {
+        'user_id': request.user.id,
+        'user_username': request.user.username,
+        'user_email': request.user.email,
+        'quiz_results': user_quiz_results,
+    }
+
+    return render(request, 'profile.html', context)
+
+
+from django.contrib.auth.views import PasswordChangeView, PasswordChangeDoneView
+from django.urls import reverse_lazy
+
+class CustomPasswordChangeView(PasswordChangeView):
+    template_name = 'registration/password_change_form.html'  # Укажите свой шаблон, если нужен
+    success_url = reverse_lazy('password_change_done')
+
+class CustomPasswordChangeDoneView(PasswordChangeDoneView):
+    template_name = 'registration/password_change_done.html'  # Укажите свой шаблон, если нужен
+
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.db.models import Sum
+from .models import UserAnswer, Question, QuizResultAdmin
+
+
+@receiver(post_save, sender=UserAnswer)
+def save_quiz_result(sender, instance, **kwargs):
+    # Получаем данные для пользователя и квиза
+    user_id = instance.user.id
+    quiz_id = instance.quiz.id
+
+    # Вычисляем общее количество баллов пользователя за квиз
+    total_score = UserAnswer.objects.filter(user_id=user_id, quiz_id=quiz_id).aggregate(total=Sum('score'))['total']
+
+    # Вычисляем максимальный возможный балл за квиз
+    max_score = Question.objects.filter(quiz_id=quiz_id).aggregate(
+        max_total=Sum('score_a') + Sum('score_b') + Sum('score_c') + Sum('score_d')
+    )['max_total']
+
+    # Получаем имя пользователя и дату
+    username = instance.user.username
+    date = instance.answered_at
+
+    # Создаем новую запись в таблице QuizResultAdmin
+    QuizResultAdmin.objects.create(
+        user_id=user_id,
+        username=username,
+        score=total_score,
+        max_score=max_score,
+        date=date,
+    )

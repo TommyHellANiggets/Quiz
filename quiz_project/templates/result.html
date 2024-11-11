@@ -1,17 +1,30 @@
-{% if error %}
-    <p>{{ error }}</p>
-{% else %}
-    <h2>Вы набрали: {{ total_score }} из {{ total_possible_score }}</h2>
+{% load static %}
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результаты квиза</title>
+    <link rel="stylesheet" href="{% static 'quiz.css' %}">
+</head>
+<body>
 
-    <h3>Результаты по вопросам:</h3>
-    <ul>
+<div class="quiz-result-container">
+    <h1 class="quiz-result-title">Результаты квиза: {{ quiz.title }}</h1>
+    <p class="quiz-result-summary">Вы набрали: <span class="quiz-score">{{ user_score }} из {{ total_score }}</span> баллов</p>
+
+    <div class="quiz-result-table">
+        <div class="quiz-result-table-header">
+            <span class="quiz-question-header">Вопрос</span>
+            <span class="quiz-score-header">Баллы</span>
+        </div>
+
         {% for result in question_results %}
-            <li>
-                <strong>Вопрос:</strong> {{ result.question }} <br>
-                <strong>Ваш ответ:</strong> {{ result.selected_answer }} <br>
-                <strong>Правильный ответ:</strong> {{ result.correct_answer }} <br>
-                <strong>Баллы:</strong> {{ result.score }}
-            </li>
+        <div class="quiz-result-table-row">
+            <span class="quiz-question-number">Вопрос {{ result.question_number }}:</span>
+            <span class="quiz-result-score">{{ result.user_answer_score }} из {{ result.total_question_score }} баллов</span>
+        </div>
         {% endfor %}
-    </ul>
-{% endif %}
+    </div>
+</div>
+</body>
+</html>

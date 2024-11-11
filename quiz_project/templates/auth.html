@@ -22,6 +22,7 @@
             <div class="auth-forms">
                 <form method="POST" class="auth-form" id="login-form">
                     {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ next }}"> <!-- Поле для сохранения next -->
                     <label for="email-login" class="auth-label">Электронная почта</label>
                     <input type="email" id="email-login" name="email-login" class="auth-input" placeholder="Введите вашу почту" required>
 
@@ -32,15 +33,22 @@
                     </div>
 
                     <button type="submit" name="login-btn" class="auth-button">Войти</button>
+
+                    <!-- Display messages if any -->
+                    {% if messages %}
+                        <div class="messages">
+                            {% for message in messages %}
+                                <p>{{ message }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
                 </form>
 
                 <form method="POST" class="auth-form" id="register-form" style="display: none;">
                     {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ next }}"> <!-- Поле для сохранения next -->
                     <label for="name-register" class="auth-label">Имя</label>
                     <input type="text" id="name-register" name="name-register" class="auth-input" placeholder="Введите ваше имя" required>
-
-<!--                    <label for="phone-register" class="auth-label">Номер телефона</label>-->
-<!--                    <input type="tel" id="phone-register" name="phone-register" class="auth-input" placeholder="Введите ваш номер телефона" required>-->
 
                     <label for="email-register" class="auth-label">Электронная почта</label>
                     <input type="email" id="email-register" name="email-register" class="auth-input" placeholder="Введите вашу почту" required>
@@ -52,19 +60,19 @@
                     </div>
 
                     <button type="submit" name="register-btn" class="auth-button">Зарегистрироваться</button>
+
+                    <!-- Display messages if any -->
+                    {% if messages %}
+                        <div class="messages">
+                            {% for message in messages %}
+                                <p>{{ message }}</p>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
                 </form>
             </div>
         </div>
     </div>
-
-    <!-- Display messages if any -->
-    {% if messages %}
-        <div class="messages">
-            {% for message in messages %}
-                <p>{{ message }}</p>
-            {% endfor %}
-        </div>
-    {% endif %}
 
     <script src="{% static 'script.js' %}"></script>
 </body>
