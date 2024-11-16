@@ -136,14 +136,6 @@ def save_quiz_answers(request, slug):
     return JsonResponse({'error': 'Invalid request method'}, status=405)
 
 
-from django.shortcuts import render, get_object_or_404
-from .models import Quiz, Question, UserAnswer
-from django.contrib.auth.decorators import login_required
-
-from django.shortcuts import render, get_object_or_404
-from .models import Quiz, UserAnswer
-from django.contrib.auth.decorators import login_required
-
 
 @login_required
 def quiz_result(request, slug):
@@ -153,9 +145,9 @@ def quiz_result(request, slug):
     # Получаем все вопросы квиза
     questions = quiz.questions.all()
 
-    # Считаем максимальное количество баллов за квиз
+    # Считаем максимальное количество баллов за квиз (используем max для каждого вопроса)
     total_score = sum(
-        question.score_a + question.score_b + question.score_c + question.score_d
+        max(question.score_a, question.score_b, question.score_c, question.score_d)
         for question in questions
     )
 
@@ -168,29 +160,52 @@ def quiz_result(request, slug):
     # Список для хранения результатов по каждому вопросу
     question_results = []
 
+    # Создаем два списка для графика
+    question_labels = []
+    correct_percentages = []
+
     for idx, question in enumerate(questions, 1):  # Начнем нумерацию с 1
         # Получаем ответ пользователя на текущий вопрос
         user_answer = user_answers.filter(question=question).first()
         # Если пользователь ответил, то берем его баллы, если нет, то 0
         user_answer_score = user_answer.score if user_answer else 0
-        # Суммируем баллы за все варианты ответов на вопрос
-        total_question_score = question.score_a + question.score_b + question.score_c + question.score_d
+        # Максимальный балл за вопрос
+        max_question_score = max(question.score_a, question.score_b, question.score_c, question.score_d)
+
+        # Подсчитываем процент правильных ответов на вопрос
+        correct_count = UserAnswer.objects.filter(
+            question=question,
+            selected_answer=question.correct_answer
+        ).count()
+        total_count = UserAnswer.objects.filter(question=question).count()
+        correct_percentage = (correct_count / total_count) * 100 if total_count > 0 else 0
+
         # Добавляем в список результаты
         question_results.append({
             'question_number': idx,
             'user_answer_score': user_answer_score,
-            'total_question_score': total_question_score,
+            'max_question_score': max_question_score,
+            'correct_answer': question.correct_answer,
+            'user_answer': user_answer.selected_answer if user_answer else None,
+            'correct_percentage': correct_percentage,
         })
 
-    # Отправляем данные в контекст для отображения на странице
+        # Добавляем данные для графика
+        question_labels.append(f'Вопрос {idx}')
+        correct_percentages.append(correct_percentage)
+
+    # В views.py
     context = {
         'quiz': quiz,
         'total_score': total_score,
         'user_score': user_score,
         'question_results': question_results,
+        'question_labels': question_labels,
+        'correct_percentages': correct_percentages,
     }
 
     return render(request, 'result.html', context)
+
 
 
 from django.db.models import Sum

@@ -1,16 +1,30 @@
 {% load static %}
+
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Результаты квиза</title>
     <link rel="stylesheet" href="{% static 'quiz.css' %}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 <body>
 
 <div class="quiz-result-container">
-    <h1 class="quiz-result-title">Результаты квиза: {{ quiz.title }}</h1>
-    <p class="quiz-result-summary">Вы набрали: <span class="quiz-score">{{ user_score }} из {{ total_score }}</span> баллов</p>
+    <div class="header-result">
+        <img src="{% static 'confetti 1.png' %}" alt="" style="transform: scaleX(-1);">
+        <div>
+            <h2 class="quiz-result-subtitle">Спасибо, что прошли опрос</h2>
+            <h1 class="quiz-result-title">Результаты квиза: <br> {{ quiz.title }}</h1>
+            <p class="quiz-result-summary">Ваш балл: {{ user_score }} из {{ total_score }}</p>
+        </div>
+        <img src="{% static 'confetti 1.png' %}" alt="">
+
+    </div>
 
     <div class="quiz-result-table">
         <div class="quiz-result-table-header">
@@ -19,12 +33,111 @@
         </div>
 
         {% for result in question_results %}
-        <div class="quiz-result-table-row">
-            <span class="quiz-question-number">Вопрос {{ result.question_number }}:</span>
-            <span class="quiz-result-score">{{ result.user_answer_score }} из {{ result.total_question_score }} баллов</span>
+        <div class="quiz-result-card">
+            <div class="quiz-result-header">
+                <span class="quiz-question-number">Вопрос {{ result.question_number }}:</span>
+                <span class="quiz-result-score">{{ result.user_answer_score }} из {{ result.max_question_score }} баллов</span>
+            </div>
+
+            <!-- Нажмите, чтобы узнать больше -->
+            <span class="quiz-more-info-text">Нажмите, чтобы увидеть больше</span>
+
+            <!-- Скрытое содержимое (аккордеон) -->
+            <div class="accordion-content">
+                <p><strong>Правильный ответ:</strong> {{ result.correct_answer }}</p>
+                <p><strong>Ваш ответ:</strong> {{ result.user_answer }}</p>
+                <p><strong>Процент правильных ответов:</strong> {{ result.correct_percentage }}%</p>
+            </div>
         </div>
-        {% endfor %}
+{% endfor %}
+
+
     </div>
+
+
+        <canvas id="myChart"></canvas>
+<script>
+const quizCards = document.querySelectorAll('.quiz-result-card');
+
+let currentlyOpen = null;
+
+quizCards.forEach(function(card) {
+    card.addEventListener('click', function() {
+        const content = card.querySelector('.accordion-content');
+
+        if (content.style.display === "none" || content.style.display === "") {
+            if (currentlyOpen && currentlyOpen !== content) {
+                currentlyOpen.style.display = "none";
+            }
+
+            content.style.display = "flex";
+            currentlyOpen = content;
+        } else {
+            content.style.display = "none";
+            currentlyOpen = null;
+        }
+    });
+});
+
+
+const questionLabels = {{ question_labels|safe }};
+const correctPercentages = {{ correct_percentages|safe }};
+
+const ctx = document.getElementById('myChart').getContext('2d');
+const myChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: questionLabels, // Метки оси X (Номера вопросов)
+        datasets: [{
+            label: 'Процент правильных ответов',
+            data: correctPercentages, // Данные для высоты столбиков
+            backgroundColor: function(context) {
+                const gradient = ctx.createLinearGradient(0, 0, 0, context.chart.height);
+                gradient.addColorStop(0, '#0066FF'); // Начало градиента (снизу)
+                gradient.addColorStop(1, '#003D99'); // Конец градиента (сверху)
+                return gradient;
+            },
+            borderRadius: 20, // Скругление углов
+            maxBarThickness: 50, // Ограничение максимальной ширины столбика до 50px
+        }]
+    },
+    options: {
+        responsive: true,
+        animation: {
+            duration: 1500, // Длительность анимации
+            easing: 'easeOutQuart', // Плавное замедление анимации
+        },
+        scales: {
+            x: {
+                categoryPercentage: 0.8, // Ширина групп столбиков (уменьшаем, чтобы столбики не растягивались)
+                barPercentage: 0.9, // Ширина отдельных столбиков в группе (уменьшаем)
+            },
+            y: {
+                beginAtZero: true,
+                max: 100, // Предел оси Y — 100%, так как это проценты
+                ticks: {
+                    callback: function(value) { return value + "%" } // Отображение "%" на оси Y
+                }
+            }
+        },
+        plugins: {
+            tooltip: {
+                callbacks: {
+                    label: function(tooltipItem) {
+                        // Форматируем подсказку так, чтобы отображался процент
+                        return tooltipItem.raw.toFixed(0) + '%'; // Показать процент с двумя знаками после запятой
+                    }
+                }
+            }
+        }
+    }
+});
+</script>
 </div>
+
+
+
+
+
 </body>
 </html>
